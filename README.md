@@ -1,11 +1,11 @@
-# < Title of your final project >
+# < PUBG 遊戲策略 >
 
 ### Groups
-* < name, student ID1 >
-* < name, student ID2 >
-* < name, student ID3 >
-* ...
-
+* < 張順益, 105304025 >
+* < 郭冠廷, 105304032 >
+* < 孫崇斌, 105304050 >
+* < 黎濟毅, 107753012 >
+* < 賴晨和, 107753004 >
 ### Goal
 A breif introduction about your project, i.e., what is your goal?
 
