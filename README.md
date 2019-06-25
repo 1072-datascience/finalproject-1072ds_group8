@@ -7,7 +7,9 @@
 * < 黎濟毅, 107753012 >
 * < 賴晨和, 107753004 >
 ### Goal
-A breif introduction about your project, i.e., what is your goal?
+我們希望透過10萬筆PUBG遊戲數據做迴歸分析，以排名百分比作為應變數，來找出那些能夠在每場對戰中，獲得前面名次玩家之重要變數，藉此分析這些玩家能夠獲勝的關鍵因素。
+
+此外，我們也希望對10萬筆玩家進行集群分析，希望能透過分群，找出不同特徵的玩家，並且根據分群結果，提供遊戲廠商一些遊戲或商業策略。
 
 ### Demo 
 You should provide an example commend to reproduce your result
