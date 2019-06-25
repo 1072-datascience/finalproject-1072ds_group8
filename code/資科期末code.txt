@@ -1,0 +1,248 @@
+import pandas as pd
+import numpy as np
+import gc
+import matplotlib.pyplot as plt
+import seaborn as sns
+import statsmodels.api as sm
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.decomposition import PCA
+from matplotlib.colors import ListedColormap
+import scipy.stats as st 
+from sklearn.linear_model import RidgeCV,Ridge
+from sklearn.metrics import r2_score
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+df1=[]
+for i in pd.read_csv(r"C:\Users\±i¶¶¯q\Desktop\train_V2.csv",engine="python",chunksize=500000):
+    df1.append(i)
+df=pd.concat(df1)
+del df1
+gc.collect()
+corr=df2.corr()
+np.where(np.abs(corr)>0.8)
+df.head()
+df.info()
+df.describe()
+df.dropna(inplace=True)
+df[df.isnull().values==True]
+df1=df.drop(["Id","groupId","matchId"],axis=1)
+df2=df1.iloc[:100000,:]
+mat=pd.get_dummies(df2.matchType,drop_first=True)
+df2=df2.drop("matchType",axis=1)
+df2=pd.concat([df2,mat],axis=1)
+df2.info()
+x=df2.drop("winPlacePerc",axis=1)
+y=df2["winPlacePerc"]
+x=sm.add_constant(x)
+model = sm.OLS(y,x)
+results=model.fit()
+results.summary()
+vif = pd.DataFrame()
+vif["VIF Factor"] = [variance_inflation_factor(x.values, i) for i in range(x.shape[1])]
+vif["features"] = x.columns
+x1=x.drop(["killPoints","maxPlace","rankPoints","numGroups","winPoints","duo","duo-fpp","solo","solo-fpp","squad","squad-fpp"],axis=1)
+model1 = sm.OLS(y,x1)
+results1=model1.fit()
+results1.summary()
+vif = pd.DataFrame()
+vif["VIF Factor"] = [variance_inflation_factor(x1.values, i) for i in range(x1.shape[1])]
+vif["features"] = x1.columns
+x2=x1.drop(["headshotKills","longestKill","crashtpp","flarefpp"],axis=1)
+model2 = sm.OLS(y,x2)
+results2=model2.fit()
+results2.summary()
+ol =results2.get_influence()
+ol.cooks_distance[0] >4/100000
+x3=x2.iloc[np.where(ol.cooks_distance[0] <=4/100000)[0],:]
+y1=y.iloc[np.where(ol.cooks_distance[0] <=4/100000)[0],]
+model3 = sm.OLS(y1,x3)
+results3=model3.fit()
+results3.summary()
+
+residual = results3.resid
+sns.distplot(residual,
+             kde = False,
+             color = 'blue',
+             fit = st.norm)
+plt.title('residual')
+plt.savefig(r"C:\Users\±i¶¶¯q\Desktop\9.png",dpi=400)
+pq = sm.ProbPlot(residual)
+pq.ppplot(line='45')
+plt.savefig(r"C:\Users\±i¶¶¯q\Desktop\8.png",dpi=400)
+sm.stats.diagnostic.het_breuschpagan(residual,results3.model.exog)
+
+plt.figure(figsize=(8,6))
+n_alphas = 20
+alphas = np.logspace(-1,4,num=n_alphas)
+coefs = []
+for a in alphas:
+    ridge = Ridge(alpha=a, fit_intercept=False)
+    ridge.fit(x, y)
+    coefs.append(ridge.coef_)
+ax = plt.gca()
+ax.plot(alphas, coefs)
+ax.set_xscale('log')
+handles, labels = ax.get_legend_handles_labels()
+plt.legend(labels=df.columns[1:-1])
+plt.xlabel('alpha')
+plt.ylabel('weights')
+plt.axis('tight')
+plt.savefig(r"C:\Users\±i¶¶¯q\Desktop\10.png")
+clf =RidgeCV(alphas=[0.1, 1.0, 10.0,100])
+clf.fit(x,y)
+clf.alpha_
+coef=np.hstack((clf.intercept_,clf.coef_))
+columns=np.hstack((np.array("const"),x.columns))
+pd.concat([pd.DataFrame(columns),pd.DataFrame(coef)],axis=1)
+y_pred=clf.predict(x)
+r2_score(y, y_pred, multioutput='raw_values')
+
+km=KMeans(n_clusters=4,init='k-means++',n_init=10,max_iter=300,tol=0.0001,random_state=1)
+df3=df2.iloc[:,:25]
+std=MinMaxScaler()
+df4=std.fit_transform(df3)
+df4=pd.DataFrame(df4,columns=df3.columns)
+df4.iloc[:,:-1].head(50)
+y_km=km.fit_predict(df4)
+df3["y_km"]=y_km
+df4["y_km"]=y_km
+fig,axes=plt.subplots(2,2,sharex=True,figsize=(20,20))
+k=0
+title=["first","twice","third","fourth"]
+for i in range(2):
+    for j in range(2):
+        axes[i,j].boxplot(df4.iloc[df4.y_km.values==k,:-1].values)
+        axes[i,j].set_xticklabels(df4.columns[:-1],rotation=45)
+        axes[i,j].set_title(title[k])
+        k=k+1
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\1.png")
+l=0
+fig,axes=plt.subplots(2,2,sharex=True,figsize=(20,20))
+for i in range(2):
+    for j in range(2):
+        axes[i,j].hist(df3.loc[df3.y_km==l,"winPlacePerc"])
+        axes[i,j].set_title(title[l])
+        l=l+1
+fig.suptitle("winPlacePercent",fontsize=20)
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\3.png")
+
+cou=df4["y_km"].groupby(df4["y_km"]).count()
+plt.pie(cou,labels=range(1,5),autopct="%3.1f%%")
+plt.savefig(r"C:\Users\±i¶¶¯q\Desktop\4.png",dpi=600)
+pca=PCA(n_components=3)
+pca_df4=pca.fit_transform(df4.iloc[:,:-1])
+pca_explain=pd.DataFrame(pca.components_,columns=df4.columns[:-1])
+pca_explain.to_csv(r"C:\Users\±i¶¶¯q\Desktop\pca_explain.csv")
+pca.explained_variance_ratio_
+
+pc1=[n[0] for n in pca_df4]
+pc2=[n[1] for n in pca_df4]
+pc3=[n[2] for n in pca_df4]
+pc4=pd.concat([pd.DataFrame(pc1),pd.DataFrame(pc2),pd.DataFrame(pc3)],axis=1)
+pc4["y_km"]=y_km
+fig=plt.figure()
+cmap=ListedColormap(["red","blue","gray","cyan"])
+ax = plt.subplot(projection='3d')
+for i,j in enumerate(np.unique(pc4["y_km"])):
+    ax.scatter(pc4.iloc[pc4["y_km"].values==j,0],pc4.iloc[pc4["y_km"].values==j,1],pc4.iloc[pc4["y_km"].values==j,2],c=cmap(i),label=np.unique(pc4["y_km"])[i]+1)
+ax.set_xlabel('pc1(explained ratio 0.368)') 
+ax.set_ylabel('pc2(explained ratio 0.293)')
+ax.set_zlabel('pc3(explained ratio 0.177)')
+fig.legend()
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\7.png",dpi=500)
+
+fig,axes=plt.subplots(2,2,sharex=True,figsize=(20,20))
+m=0
+for i in range(2):
+    for j in range(2):
+        axes[i,j].hist(df3.loc[df3.y_km==m,"matchDuration"])
+        axes[i,j].set_title(title[m])
+        m=m+1
+fig.suptitle("matchtime",fontsize=20)
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\5.png")
+
+fig,axes=plt.subplots(2,2,sharex=True,figsize=(20,20))
+n=0
+for i in range(2):
+    for j in range(2):
+        axes[i,j].hist(df3.loc[df3.y_km==n,"winPoints"])
+        axes[i,j].set_title(title[n])
+        n=n+1
+fig.suptitle("winPoints",fontsize=20)
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\6.png")
+
+totaldis=np.sum(df3.loc[:,["rideDistance","swimDistance","walkDistance"]],axis=1)
+df3["totaldis"]=totaldis
+
+
+plt.bar(df7.index,df6.kills.groupby(df6.kills).count())
+plt.title("cheater kills")
+plt.xlabel("number of kills")
+plt.ylabel("number of people")
+plt.savefig(r"C:\Users\±i¶¶¯q\Desktop\7.png",dpi=400)
+
+fig,axes=plt.subplots(2,2,figsize=(20,20))
+axes[0,0].hist(df3.loc[:,"walkDistance"].values,df3.loc[:,"winPlacePerc"].values,bin=10)
+axes[0,0].set_title("walkDistance")
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\1.png")
+
+fig,axes=plt.subplots(2,2,figsize=(20,20))
+p=0
+for i in range(2):
+    for j in range(2):
+        axes[i,j].hist(df3.loc[df3.y_km==p,"winPoints"])
+        axes[i,j].set_title(title[p])
+        p=p+1
+fig.suptitle("winPoints",fontsize=20)
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\6.png")
+
+fig,axes=plt.subplots(2,2,sharex=True,figsize=(20,20))
+q=0
+for i in range(2):
+    for j in range(2):
+        axes[i,j].hist(df3.loc[df3.y_km==q,"killStreaks"])
+        axes[i,j].set_title(title[q])
+        q=q+1
+fig.suptitle("killStreaks",fontsize=20)
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\11.png")
+
+fig,axes=plt.subplots(2,2,sharex=True,figsize=(20,20))
+q=0
+for i in range(2):
+    for j in range(2):
+        axes[i,j].hist(df3.loc[df3.y_km==q,"killStreaks"])
+        axes[i,j].set_title(title[q])
+        q=q+1
+fig.suptitle("killStreaks",fontsize=20)
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\11.png")
+
+fig,axes=plt.subplots(2,2,sharex=True,figsize=(20,20))
+s=0
+for i in range(2):
+    for j in range(2):
+        axes[i,j].hist(df3.loc[df3.y_km==s,"killPlace"])
+        axes[i,j].set_title(title[s])
+        s=s+1
+fig.suptitle("killPlace",fontsize=20)
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\12.png")
+
+fig,axes=plt.subplots(2,2,sharex=True,figsize=(20,20))
+t=0
+for i in range(2):
+    for j in range(2):
+        axes[i,j].hist(df3.loc[df3.y_km==t,"totaldis"])
+        axes[i,j].set_title(title[t])
+        t=t+1
+fig.suptitle("totaldis",fontsize=20)
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\13.png")
+df4.iloc[:,14]
+fig,axes=plt.subplots(2,2,sharex=True,figsize=(20,20))
+t=0
+for i in range(2):
+    for j in range(2):
+        axes[i,j].hist(df3.loc[df3.y_km==t,"rankPoints"])
+        axes[i,j].set_title(title[t])
+        t=t+1
+fig.suptitle("rankPoints",fontsize=20)
+fig.savefig(r"C:\Users\±i¶¶¯q\Desktop\13.png")
